@@ -1,0 +1,25 @@
+{
+  "name": "stackpath-agilitycms-url-redirections",
+  "version": "1.0.0",
+  "description": "Cli to sync URL Redirections from Agility CMS to a Stackpath Site",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jamesvidler/stackpath-agilitycms-url-redirections"
+  },
+  "author": "James Vidler",
+  "license": "ISC",
+  "bin": {
+    "stackpath-agilitycms-url-redirections": "./cli.js"
+  },
+  "dependencies": {
+    "@agility/content-fetch": "^1.1.1",
+    "cli-color": "^1.4.0",
+    "deep-sort": "^1.0.4",
+    "request": "^2.88.0",
+    "yargs": "^13.3.0"
+  }
+}
