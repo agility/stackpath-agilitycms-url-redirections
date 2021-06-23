@@ -78,6 +78,8 @@ api.getUrlRedirections({
         formatUrlRedirects(u)
     )));
 
+    console.log(agilityRedirections);
+
     var content = `
 
         addEventListener("fetch", event => {
@@ -92,17 +94,28 @@ api.getUrlRedirections({
                     JSON.stringify(agilityRedirections)
                 }
         
+                const host = new URL(request.url).host;
                 const path = new URL(request.url).pathname;
-        
-                if(urlRedirects[path]){
+                const fullURL = "https://"+host+path;
+
+                if(urlRedirects[fullURL]){
                     return new Response(null, {
-                    status: urlRedirects[path].statusCode,
-                    statusText: "Moved Permanently",
-                    headers: {
-                        Location: urlRedirects[path].destinationUrl
-                    }
+                        status: urlRedirects[fullURL].statusCode,
+                        statusText: "Moved Permanently",
+                        headers: {
+                            Location: urlRedirects[fullURL].destinationUrl
+                        }
                     });      
                 }
+                else if(urlRedirects[path]){
+                    return new Response(null, {
+                        status: urlRedirects[path].statusCode,
+                        statusText: "Moved Permanently",
+                        headers: {
+                            Location: urlRedirects[path].destinationUrl
+                        }
+                    });      
+                }  
         
             }
             catch(e){
@@ -185,5 +198,5 @@ function formatUrlRedirects(urlRedirect){
         parsedDestinationUrl = parsedDestinationUrl.substring(1);
     }
 
-    return { [parsedDestinationUrl] : {destinationUrl: parsedDestinationUrl, statusCode: urlRedirect.statusCode}}
+    return { [parsedOriginUrl] : {destinationUrl: parsedDestinationUrl, statusCode: urlRedirect.statusCode}}
 }
