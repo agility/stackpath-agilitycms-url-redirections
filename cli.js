@@ -92,7 +92,6 @@ api.getUrlRedirections({
                     JSON.stringify(agilityRedirections)
                 }
         
-                const host = new URL(request.url).hostname;
                 const path = new URL(request.url).pathname;
         
                 if(urlRedirects[path]){
@@ -138,7 +137,7 @@ async function uploadServerlessScript(authToken, code){
     try{
         let response = await fetch(url, params);
         let json = await response.json();
-        console.log(notice(`Success uploaded ${json.script.name}!`));
+        console.log(notice(`Successfully uploaded ${json.script.name}!`));
     }
     catch(ex){
         console.log(error(ex));
