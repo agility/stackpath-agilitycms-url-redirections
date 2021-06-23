@@ -78,8 +78,6 @@ api.getUrlRedirections({
         formatUrlRedirects(u)
     )));
 
-    console.log(agilityRedirections);
-
     var content = `
 
         addEventListener("fetch", event => {
@@ -96,7 +94,8 @@ api.getUrlRedirections({
         
                 const host = new URL(request.url).host;
                 const path = new URL(request.url).pathname;
-                const fullURL = "https://"+host+path;
+                const queryString = new URL(request.url).search;
+                const fullURL = "https://"+ host + path + queryString;
 
                 if(urlRedirects[fullURL]){
                     return new Response(null, {
@@ -115,13 +114,14 @@ api.getUrlRedirections({
                             Location: urlRedirects[path].destinationUrl
                         }
                     });      
-                }  
-        
+                }
+                else{
+                    return fetch(request);
+                }        
             }
             catch(e){
-                return new Response(e.stack || e, { status: 500 });
-            }
-        
+                return fetch(request);
+            }       
         }
     `;
 
