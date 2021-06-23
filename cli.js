@@ -1,13 +1,12 @@
 #!/usr/bin/env nodes
-var request = require('request')
-var argv = require('yargs').argv
-var clc = require('cli-color')
-var deepSort = require('deep-sort')
-var agility = require('@agility/content-fetch')
+var argv = require('yargs').argv;
+var clc = require('cli-color');
+var agility = require('@agility/content-fetch');
+var buffer = require('buffer/').Buffer;
+const fetch = require('node-fetch');
 
 //colors... oh ya...
 var error = clc.red.bold;
-var warn = clc.yellow;
 var notice = clc.blue;
 
 //validate required args
@@ -31,6 +30,11 @@ if(argv.stackpath_site_id === undefined) {
     return;
 }
 
+if(argv.stackpath_script_id === undefined) {
+    console.error(error('Missing --stackpath_script_id argument. This is the stackpath script ID to update the serverless script.'));
+    return;
+}
+
 if(argv.agilitycms_guid === undefined) {
     console.error(error('Missing --agilitycms_guid argument. This is the guid of your agilitycms instance.'))
     return;
@@ -41,13 +45,13 @@ if(argv.agilitycms_fetchApiKey === undefined) {
     return;
 }
 
-
 //default options
 var options = {
     stackpath_client_id: null,
     stackpath_client_secret: null,
     stackpath_stack_id: null,
     stackpath_site_id: null,
+    stackpath_script_id: null,
     agilitycms_guid: null,
     agilitycms_fetchApiKey: null
 }
@@ -55,47 +59,8 @@ var options = {
 //overwrite defaults
 options = {...options, ...argv};
 
-/*TODO:
-- Write a sample redirect script in Stackpath 
-- Get URL Redirections from Agility CMS in this app
-- Normalize the redirects into a standard format that will
-- Concatenate a string representing the new Script file that will be uploaded to stackpath
-- Upload to stackpath, replacing the existing script (https://stackpath.dev/reference/serverless-scripting#updatesitescript)
-*/
-
-
-
-var getAuthToken = function(cb) {
-    request({
-        method: 'POST',
-        uri: `https://gateway.stackpath.com/identity/v1/oauth2/token`,
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: {
-            grant_type: 'client_credentials',
-            client_id: options.stackpath_client_id,
-            client_secret: options.stackpath_client_secret
-        },
-        json: true,
-    }, function(errorObj, response, body) {
-        if(errorObj) {
-            console.log(error(errorObj));
-            return;
-        } 
-        if(response && response.statusCode) {
-            console.log(notice('Successfully received auth token from Stackpath...'))
-            cb(body.access_token);
-        }
-    });
-}
-
-
 //Get all Redirections from Agility CMS
-
 let agilityRedirections = {};
-let stackpathRedirections = {};
 
 const api = agility.getApi({
     guid: options.agilitycms_guid,
@@ -107,55 +72,119 @@ let dateObj = null;
 api.getUrlRedirections({
     lastAccessDate: dateObj
 })
-.then(function(resp) {
-    agilityRedirections = Object.assign({}, ...resp.items.map((x) => ({[x.originUrl]: x})));
+.then(async function(resp) {
 
+    agilityRedirections = Object.assign({}, ...resp.items.map((u) => (
+        formatUrlRedirects(u)
+    )));
+
+    var content = `
+
+        addEventListener("fetch", event => {
+            event.respondWith(handleRequest(event.request));
+        });
+        
+        async function handleRequest(request) {
+        
+            try{
+        
+                const urlRedirects = ${
+                    JSON.stringify(agilityRedirections)
+                }
+        
+                const host = new URL(request.url).hostname;
+                const path = new URL(request.url).pathname;
+        
+                if(urlRedirects[path]){
+                    return new Response(null, {
+                    status: urlRedirects[path].statusCode,
+                    statusText: "Moved Permanently",
+                    headers: {
+                        Location: urlRedirects[path].destinationUrl
+                    }
+                    });      
+                }
+        
+            }
+            catch(e){
+                return new Response(e.stack || e, { status: 500 });
+            }
+        
+        }
+    `;
+
+    let code = buffer.from(content).toString('base64');    
+    const authToken = await getAuthToken();
+    await uploadServerlessScript(authToken,code);
 })
-.catch(function(error) {
-    console.log(error);
+.catch(function(ex) {
+    error(ex);
 });
 
+async function uploadServerlessScript(authToken, code){
 
+    const url = `https://gateway.stackpath.com/cdn/v1/stacks/${options.stackpath_stack_id}/sites/${options.stackpath_site_id}/scripts/${options.stackpath_script_id}`;
+    const params = {
+        method: 'PATCH',
+        headers: {
+            Accept: 'application/json', 'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`            
+        },
+        body: JSON.stringify({
+            code
+        })
+    };
 
-var getStackpathScope = function(callback) {
-    getAuthToken(function(access_token) {
-        
-        request({
-            method: 'GET',
-            uri: `https://gateway.stackpath.com/cdn/v1/stacks/${options.stackpath_stack_id}/sites/${options.stackpath_site_id}/scopes`,
-            body: null,
-            json: true,
-            auth: {
-                bearer: access_token
-            }
-        }, function(errorObj, response, body) {
-            if(errorObj) {
-                console.error(error(errorObj));
-                return;
-            } 
-            if(response.statusCode === 400) {
-                console.error("400 error");
-                return;
-            }
-            if(response && response.statusCode) {
-                console.log(response.statusCode);
-                console.log(notice('Got Scope!'))
-                callback(access_token, body.results[1].id);
-            }
-        });
-    })
+    try{
+        let response = await fetch(url, params);
+        let json = await response.json();
+        console.log(notice(`Success uploaded ${json.script.name}!`));
+    }
+    catch(ex){
+        console.log(error(ex));
+    }
 }
 
+async function getAuthToken() {
 
+    const url = 'https://gateway.stackpath.com/identity/v1/oauth2/token';
+    const params = {
+        method: 'POST',
+        uri: `https://gateway.stackpath.com/identity/v1/oauth2/token`,
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            grant_type: 'client_credentials',
+            client_id: options.stackpath_client_id,
+            client_secret: options.stackpath_client_secret
+        }),
+    };
 
-var formatUrl = function(url) {
-    if(url.indexOf('~/') === 0) {
-        url = `*://*/${url.substring(2, url.length)}`
-    } else if(url.indexOf('/') === 0) {
-        url = `*://*/${url.substring(1, url.length)}`
+    try{
+        let response = await fetch(url, params);
+        let json = await response.json();
+        return json.access_token;
+    }
+    catch(ex){
+        console.log(error(ex));
+        return "";
+    }    
+}
+
+function formatUrlRedirects(urlRedirect){
+
+    let parsedOriginUrl = urlRedirect.originUrl;
+    let parsedDestinationUrl = urlRedirect.destinationUrl;
+
+    if(parsedOriginUrl.charAt(0) == '~'){
+        parsedOriginUrl = parsedOriginUrl.substring(1);
     }
 
-    return url;
+    if(parsedDestinationUrl.charAt(0) == '~'){
+        parsedDestinationUrl = parsedDestinationUrl.substring(1);
+    }
+
+    return { [parsedDestinationUrl] : {destinationUrl: parsedDestinationUrl, statusCode: urlRedirect.statusCode}}
 }
-
-
