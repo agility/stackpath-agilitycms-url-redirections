@@ -1,6 +1,9 @@
 # Sync Agility URL Redirections to Stackpath CLI
 This CLI tool will lookup all [URL Redirections from Agility CMS](https://manager.agilitycms.com/settings/urlredirections), build a node.js serverless script (in memory) to handle those redirects, and upload it to a specified Stackpath site which has [Serverless Scripting](https://www.stackpath.com/products/serverless-scripting) enabled.
 
+# Who this is for
+This tool is built to help Agility CMS customers manage their website's URL Redirections when their site is a static HTML site hosted on [Stackpath CDN](https://www.stackpath.com/).
+
 # How to Run It
 1. Clone this repository `git clone https://github.com/agility/stackpath-agilitycms-url-redirections`
 2. Run `npm install`
