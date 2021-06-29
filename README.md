@@ -14,7 +14,8 @@ This CLI tool will lookup all [URL Redirections from Agility CMS](https://manage
 - **agilitycms_fetchApiKey** -> The API key to use to retrieve the URL redirections from Agility CMS
 4. Run the script the with following parameters (replace the `xxxxxxxxxxxx` with your real values)
 ```
-node cli.js --stackpath_client_id xxxxxxxxxxxxxxxxxxx --stackpath_client_secret xxxxxxxxxxxxxxxxxxx  --stackpath_stack_id xxxxxxxxxxxxxxxxxxx --stackpath_site_id xxxxxxxxxxxxxxxxxxx --stackpath_script_id xxxxxxxxxxxxxxxxxxx --agilitycms_guid xxxxxxxxxxxxxxxxxxx --agilitycms_fetchApiKey xxxxxxxxxxxxxxxxxxx
+node cli.js --stackpath_client_id xxxxxxxxxxxxxxxxxxx --stackpath_client_secret xxxxxxxxxxxxxxxxxxx  --stackpath_stack_id xxxxxxxxxxxxxxxxxxx --stackpath_site_id
+xxxxxxxxxxxxxxxxxxx --stackpath_script_id xxxxxxxxxxxxxxxxxxx --agilitycms_guid xxxxxxxxxxxxxxxxxxx --agilitycms_fetchApiKey xxxxxxxxxxxxxxxxxxx
 ```
 
 # Need Support?
